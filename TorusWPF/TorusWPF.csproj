@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="copy /Y &quot;$(SolutionDir)\Api\*.dll&quot; &quot;$(TargetDir)\&quot;" />
+    <Exec Command="copy /Y &quot;$(MSBuildProjectDirectory)\..\Api\*.dll&quot; &quot;$(TargetDir)\&quot;" />
   </Target>
 
 </Project>
