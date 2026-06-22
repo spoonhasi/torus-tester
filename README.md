@@ -23,6 +23,10 @@ For detailed license information, please refer to the [LICENSE folder](LICENSE/)
 
 ## Updates
 ---
+v2.3.18
+- TORUS API 업데이트
+- 시계열 수집 시작 실패 시 오류코드 표시
+
 v2.3.17
 - 사용하지 않는 함수 정리
 

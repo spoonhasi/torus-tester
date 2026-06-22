@@ -1,32 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Windows;
-using System.Windows.Controls;
-using System.Threading;
-using System.Windows.Threading;
-using IntelligentApiCS;
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using static IntelligentApiCS.Api;
-using System.Text.Json.Serialization;
-using System.Text.Json;
-using Microsoft.Win32;
-using System.Xml.Linq;
-using System.Collections.ObjectModel;
-using System.Reflection.PortableExecutable;
+﻿using IntelligentApiCS;
 using Microsoft.VisualBasic;
-using System.Windows.Input;
-using System.Net;
-using System.Reflection;
-using System.Threading.Tasks;
+using Microsoft.Win32;
 using Newtonsoft.Json.Linq;
 using ScottPlot;
-using System.Collections.Concurrent;
-using SkiaSharp;
 using ScottPlot.WPF;
+using SkiaSharp;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
+using System.Xml.Linq;
+using static IntelligentApiCS.Api;
 
 namespace TorusWPF
 {
@@ -459,7 +459,7 @@ namespace TorusWPF
                     return;
                 }
             }
-            if (_connectResult == 0)
+            if (_connectResult == 0)//548405285 앤 인포파일이 없는 경우
             {
                 _connectedMachineList.Clear();
                 ComboBoxMachieID.Items.Clear();
@@ -3499,7 +3499,7 @@ namespace TorusWPF
             result = Api.startTimeSeries(1, machineID, _userApiTimeout);
             if (result != 0)
             {
-                System.Windows.MessageBox.Show("수집 시작 실패", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show("수집 시작 실패 (오류코드: " + result + ")", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
                 TimeSeriesSettingLock(false);
                 ButtonTimeSeriesStart.IsEnabled = true;
                 return;
