@@ -10,19 +10,29 @@ This project uses the following open-source libraries:
    - Copyright: (c) 2018 Scott Harden / Harden Technologies, LLC
 
 2. **Newtonsoft.Json**
-   - License: [MIT License](LICENSE/LECENSE_Newtonsoft.Json)
+   - License: [MIT License](LICENSE/LICENSE_Newtonsoft.Json.txt)
    - Copyright: (c) 2007 James Newton-King
 
 For detailed license information, please refer to the [LICENSE folder](LICENSE/).
 
 ## 사용법
 ---
-- 사용하려는 TORUS의 "TORUS/Example_VS19/Api"의 내용물을 본 App의 Api폴더에 복사해야 합니다. 본 App은 TORUS v2.3.0 이상에서 제대로 동작합니다.
+- TORUS는 [torus.co.kr](https://torus.co.kr/ko/main/download)에서 받을 수 있습니다.
+- 사용하려는 TORUS의 "TORUS/Example/Api"(이전 버전은 "TORUS/Example_VS19/Api")에서 아래 DLL 14개만 본 App의 TorusApi 폴더에 복사해야 합니다. 본 App은 TORUS v2.3.0 이상에서 제대로 동작합니다.
+  - IntelligentApiCS.dll, ItemCS.dll, intelligentApi.dll, libAddress.dll, libAppInfo.dll, libCommandMaker.dll, libEdgeData.dll,
+    libGuid.dll, libList.dll, libRpcClient.dll, libRpcServer.dll, libSharedMap.dll, libTrace.dll, zlib.dll
 - 본 App을 TORUS가 인식하기 위해서 "TorusTester.info" 파일을 사용하려는 TORUS의 "TORUS/Binary/application"에 복사해야 합니다. 
-- "MachineStateModelSample.txt"에 사용가능한 MachineStateModel이 저장되어 있습니다.
+- "CommonDataModels/MachineDataModelSample.txt"에 사용 가능한 MachineDataModel이 저장되어 있습니다. 마지막으로 불러온 파일이 없으면 앱 시작 시 이 파일을 불러옵니다.
 
 ## Updates
 ---
+v2.3.20
+- 공통 필터, MachineDataModel 필터가 '&'로 시작하거나 끝날 때 발생하던 크래시 수정
+- 시계열 데이터 큐의 스레드 안전성 개선, 수집 시작 실패 시 수집 루프가 남던 문제 수정
+- 기본 MachineDataModel 파일을 찾지 못하던 문제 수정
+- Api 폴더를 TorusApi로 변경하고 필요한 DLL 14개만 유지
+- 빌드 경고 제거, 문서 정리 (TORUS 다운로드 안내 추가)
+
 v2.3.19
 - 빌드 이식성 개선 (Api DLL 복사 경로를 프로젝트 상대경로로 변경)
 

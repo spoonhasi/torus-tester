@@ -182,7 +182,7 @@ namespace TorusWPF
         private readonly ScottPlot.Plottables.Scatter[] _scatterPlot = new ScottPlot.Plottables.Scatter[8];
         private readonly double[][] _scatterX = new double[8][];
         private int _timeseriesMachineID = 0;
-        private readonly Dictionary<int, ConcurrentQueue<double[]>[]> _timeSeriesQueues = [];
+        private readonly ConcurrentDictionary<int, ConcurrentQueue<double[]>[]> _timeSeriesQueues = new(); // 콜백 스레드와 TimeSeriesLoop 스레드가 동시에 접근합니다.
         private CancellationTokenSource _timeSeriesCTS;
         private Task _timeSeriesTask;
 
@@ -190,7 +190,7 @@ namespace TorusWPF
         {
             InitializeComponent();
 
-            // 소스코드의 Api폴더에 TORUS/Example_VS19/Api의 내용물을 복사해야 합니다. 본 App은 TORUS v2.3.2의 API로 제작되었습니다.
+            // 소스코드의 TorusApi폴더에 TORUS/Example/Api의 DLL 중 필요한 14개(README 참조)를 복사해야 합니다. 본 App은 TORUS v2.3.2의 API로 제작되었습니다.
             ButtonSingleStart.IsEnabled = false;
             ButtonSingleStop.IsEnabled = false;
             ButtonMultiStart.IsEnabled = false;
@@ -244,10 +244,17 @@ namespace TorusWPF
             string lastMachineDataModelFilePath = ReadConfig(Constants.ConfigFileName, "Main", "LastMachineDataModelFilePath");
             if (lastMachineDataModelFilePath == "" || File.Exists(lastMachineDataModelFilePath) == false)
             {
-                string defaultMachineDataModelFilePath = "../../../MachineDataModelSample.txt";
-                if (File.Exists(defaultMachineDataModelFilePath))
+                // 실행 폴더에서 상위 폴더로 올라가며 CommonDataModels/MachineDataModelSample.txt를 찾습니다. (Debug와 Release의 출력 폴더 깊이가 달라서 고정 상대경로를 쓰지 않습니다.)
+                DirectoryInfo directory = new(AppDomain.CurrentDomain.BaseDirectory);
+                while (directory != null)
                 {
-                    lastMachineDataModelFilePath = Path.GetFullPath(defaultMachineDataModelFilePath);
+                    string defaultMachineDataModelFilePath = Path.Combine(directory.FullName, "CommonDataModels", "MachineDataModelSample.txt");
+                    if (File.Exists(defaultMachineDataModelFilePath))
+                    {
+                        lastMachineDataModelFilePath = defaultMachineDataModelFilePath;
+                        break;
+                    }
+                    directory = directory.Parent;
                 }
             }
             LoadMachineDataModel(lastMachineDataModelFilePath);
@@ -538,16 +545,15 @@ namespace TorusWPF
                     string[] items = contents[i].Split('\t');
                     if (items.Length > 1)
                     {
-                        if (items[1] != "")
+                        // 필터 앞뒤의 '&'를 제거합니다. 필터가 "&" 한 글자면 빈 문자열이 됩니다.
+                        items[1] = items[1].Trim();
+                        if (items[1].EndsWith('&'))
                         {
-                            if (items[1][^1..] == "&")//Substring(items[1].Length - 1)
-                            {
-                                items[1] = items[1][..^1];
-                            }
-                            if (items[1][..1] == "&")//Substring(0, 1)
-                            {
-                                items[1] = items[1][1..];
-                            }
+                            items[1] = items[1][..^1];
+                        }
+                        if (items[1].StartsWith('&'))
+                        {
+                            items[1] = items[1][1..];
                         }
                     }
                     if (items.Length > 2)
@@ -627,13 +633,13 @@ namespace TorusWPF
             _commonFilter = TextBoxCommonFilter.Text.Trim();
             if (_commonFilter != "")
             {
-                if (_commonFilter.Substring(_commonFilter.Length - 1, 1) == "&")
+                if (_commonFilter.EndsWith('&'))
                 {
                     _commonFilter = _commonFilter[..^1]; //Substring(0, commonFilter_.Length - 1)
                 }
-                if (_commonFilter[..1] == "&")
+                if (_commonFilter.StartsWith('&'))
                 {
-                    _commonFilter = _commonFilter.Substring(1, _commonFilter.Length);
+                    _commonFilter = _commonFilter[1..]; //Substring(1)
                 }
             }
             _threadSignlestopFlag = false;
@@ -2570,13 +2576,13 @@ namespace TorusWPF
             _commonFilter = TextBoxCommonFilter.Text.Trim();
             if (_commonFilter != "")
             {
-                if (_commonFilter.Substring(_commonFilter.Length - 1, 1) == "&")
+                if (_commonFilter.EndsWith('&'))
                 {
-                    _commonFilter = _commonFilter.Substring(0, _commonFilter.Length - 1);
+                    _commonFilter = _commonFilter[..^1]; //Substring(0, commonFilter_.Length - 1)
                 }
-                if (_commonFilter.Substring(0, 1) == "&")
+                if (_commonFilter.StartsWith('&'))
                 {
-                    _commonFilter = _commonFilter.Substring(1, _commonFilter.Length);
+                    _commonFilter = _commonFilter[1..]; //Substring(1)
                 }
             }
             _threadMultistopFlag = false;
@@ -2956,11 +2962,7 @@ namespace TorusWPF
                 return 0;
             }
             Debug.WriteLine($"machine={machineId}");
-            if (!_timeSeriesQueues.TryGetValue(machineId, out ConcurrentQueue<double[]>[]? value))
-            {
-                value = [new(), new(), new(), new(), new(), new(), new(), new()];
-                _timeSeriesQueues[machineId] = value;
-            }
+            ConcurrentQueue<double[]>[] value = _timeSeriesQueues.GetOrAdd(machineId, _ => [new(), new(), new(), new(), new(), new(), new(), new()]);
             for (int i = 0; i < item.count; i++)
             {
                 double[] dvals = [.. item.value[i]];
@@ -3494,8 +3496,6 @@ namespace TorusWPF
             }
             InitPlot();
             _timeseriesMachineID = machineID;
-            _timeSeriesCTS = new CancellationTokenSource();
-            _timeSeriesTask = Task.Run(() => TimeSeriesLoop(_timeSeriesCTS.Token));
             result = Api.startTimeSeries(1, machineID, _userApiTimeout);
             if (result != 0)
             {
@@ -3504,6 +3504,9 @@ namespace TorusWPF
                 ButtonTimeSeriesStart.IsEnabled = true;
                 return;
             }
+            // 수집 시작에 성공한 뒤에 루프를 띄웁니다. 그 사이 콜백으로 들어온 데이터는 큐에 쌓여 있다가 루프에서 처리됩니다.
+            _timeSeriesCTS = new CancellationTokenSource();
+            _timeSeriesTask = Task.Run(() => TimeSeriesLoop(_timeSeriesCTS.Token));
             ButtonTimeSeriesStop.IsEnabled = true;
         }
 
@@ -3747,7 +3750,7 @@ namespace TorusWPF
                     //if (GlobalDataStore.Instance.TimeSeriesQueues[_timeseriesMachineID][streamIndex].TryDequeue(out double[]? data))
                     if (_timeSeriesQueues.TryGetValue(_timeseriesMachineID, out var queues) &&
                         streamIndex >= 0 && streamIndex < queues.Length &&
-                        queues[streamIndex].TryDequeue(out double[]? data))
+                        queues[streamIndex].TryDequeue(out double[] data))
                     {
                         // 1) DB나 파일 등에 저장
                         //SaveToDatabase(data);

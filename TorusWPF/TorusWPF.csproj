@@ -22,15 +22,15 @@
 
   <ItemGroup>
     <Reference Include="IntelligentApiCS">
-      <HintPath>..\Api\IntelligentApiCS.dll</HintPath>
+      <HintPath>..\TorusApi\IntelligentApiCS.dll</HintPath>
     </Reference>
     <Reference Include="ItemCS">
-      <HintPath>..\Api\ItemCS.dll</HintPath>
+      <HintPath>..\TorusApi\ItemCS.dll</HintPath>
     </Reference>
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="copy /Y &quot;$(MSBuildProjectDirectory)\..\Api\*.dll&quot; &quot;$(TargetDir)\&quot;" />
+    <Exec Command="copy /Y &quot;$(MSBuildProjectDirectory)\..\TorusApi\*.dll&quot; &quot;$(TargetDir)\&quot;" />
   </Target>
 
 </Project>
