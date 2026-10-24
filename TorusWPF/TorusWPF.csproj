@@ -31,6 +31,8 @@
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="copy /Y &quot;$(MSBuildProjectDirectory)\..\TorusApi\*.dll&quot; &quot;$(TargetDir)\&quot;" />
+    <Exec Command="copy /Y &quot;$(MSBuildProjectDirectory)\..\TorusTester.info&quot; &quot;$(TargetDir)\&quot;" />
+    <Exec Condition="'$(Configuration)'=='Release'" Command="xcopy /Y /I /E &quot;$(MSBuildProjectDirectory)\..\CommonDataModels&quot; &quot;$(TargetDir)CommonDataModels\&quot;" />
   </Target>
 
 </Project>
