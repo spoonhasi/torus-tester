@@ -121,6 +121,16 @@ data://machine/channel/alarm/alarmCategory	channel=1&alarm=1	4.1.2.23 해당 계
 data://machine/channel/alarm/alarmNumber	channel=1&alarm=1	4.1.2.23 해당 계통에서 발생한 알람의 종류에 대한 번호를 나타내는 문자열 속성입니다.
 data://machine/channel/alarm/raisedTimeStamp	channel=1&alarm=1	4.1.2.23 해당 계통에서 발생한 알람의 발생 시간 정보를 나타내는 문자열 속성입니다.
 data://machine/channel/variable/userVariable	channel=1&variable=500	4.1.2.24 해당 계통(채널)에서 사용하는 사용자 변수입니다.
+data://machine/plc/memory/rbitBlock	rbitBlock=1	5.2.1.3 읽기 전용 bit type 데이터 블록입니다. (1 어드레스 당 1bit, 어드레스 1~65536) "Filter" 로 rbitBlock 을 사용하여 어드레스를 지정하며, "rbitBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : KCNC/CSCAM, MITSUBISHI, SIEMENS
+data://machine/plc/memory/bitBlock	bitBlock=1	5.2.1.3 읽기/쓰기가 가능한 bit type 데이터 블록입니다. (1 어드레스 당 1bit, 어드레스 1~65536) "Filter" 로 bitBlock 을 사용하여 어드레스를 지정하며, "bitBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : KCNC/CSCAM, MITSUBISHI, SIEMENS
+data://machine/plc/memory/rbyteBlock	rbyteBlock=1	5.2.1.3 읽기 전용 byte type 데이터 블록입니다. (1 어드레스 당 1byte, 어드레스 1~65536) "Filter" 로 rbyteBlock 을 사용하여 어드레스를 지정하며, "rbyteBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, SIEMENS, MITSUBISHI
+data://machine/plc/memory/byteBlock	byteBlock=1	5.2.1.3 읽기/쓰기가 가능한 byte type 데이터 블록입니다. (1 어드레스 당 1byte, 어드레스 1~65536) "Filter" 로 byteBlock 을 사용하여 어드레스를 지정하며, "byteBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, SIEMENS, MITSUBISHI
+data://machine/plc/memory/rwordBlock	rwordBlock=1	5.2.1.3 읽기 전용 word type 데이터 블록입니다. (1 어드레스 당 2byte, 어드레스 1~65536) "Filter" 로 rwordBlock 을 사용하여 어드레스를 지정하며, "rwordBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, SIEMENS, MITSUBISHI
+data://machine/plc/memory/wordBlock	wordBlock=1	5.2.1.3 읽기/쓰기가 가능한 word type 데이터 블록입니다. (1 어드레스 당 2byte, 어드레스 1~65536) "Filter" 로 wordBlock 을 사용하여 어드레스를 지정하며, "wordBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, SIEMENS, MITSUBISHI
+data://machine/plc/memory/rdwordBlock	rdwordBlock=1	5.2.1.3 읽기 전용 double word type 데이터 블록입니다. (1 어드레스 당 4byte, 어드레스 1~65536) "Filter" 로 rdwordBlock 을 사용하여 어드레스를 지정하며, "rdwordBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, SIEMENS, KCNC/CSCAM, MITSUBISHI
+data://machine/plc/memory/dwordBlock	dwordBlock=1	5.2.1.3 읽기/쓰기가 가능한 double word type 데이터 블록입니다. (1 어드레스 당 4byte, 어드레스 1~65536) "Filter" 로 dwordBlock 을 사용하여 어드레스를 지정하며, "dwordBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, SIEMENS, KCNC/CSCAM, MITSUBISHI
+data://machine/plc/memory/rqwordBlock	rqwordBlock=1	5.2.1.3 읽기 전용 quad-word type 데이터 블록입니다. (1 어드레스 당 8byte, 어드레스 1~65536) "Filter" 로 rqwordBlock 을 사용하여 어드레스를 지정하며, "rqwordBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, KCNC/CSCAM
+data://machine/plc/memory/qwordBlock	qwordBlock=1	5.2.1.3 읽기/쓰기가 가능한 quad-word type 데이터 블록입니다. (1 어드레스 당 8byte, 어드레스 1~65536) "Filter" 로 qwordBlock 을 사용하여 어드레스를 지정하며, "qwordBlock=100-200"과 같이 범위 지정이 가능합니다. 할당 가능한 NC : FANUC, KCNC/CSCAM
 data://machine/toolArea/toolAreaEnabled	toolArea=1	4.1.2.25 해당 공구 영역의 사용 가능 여부를 나타내는 논리형 속성입니다.
 data://machine/toolArea/numberOfMagazines	toolArea=1	4.1.2.25 해당 공구 영역에서 사용 가능한 매거진의 개수를 나타내는 정수형 속성입니다.
 data://machine/toolArea/numberOfRegisteredTools	toolArea=1	4.1.2.25 해당 공구 영역에 등록된 공구의 개수를 나타내는 정수형 속성입니다.
