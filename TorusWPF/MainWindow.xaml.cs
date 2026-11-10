@@ -735,7 +735,21 @@ namespace TorusWPF
                     stopwatch.Stop();
                     lock (_lock)
                     {
-                        if (tmpResult == 0)
+                        if (tmpResult == 0 && item == null)
+                        {
+                            //API는 결과가 0이어도 응답 문자열이 비었거나 파싱에 실패하면 item을 null로 돌려줍니다.
+                            _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
+                            {
+                                (ListBoxMachineState.Items[i] as MachineState).InsertResult("null 반환 (0x0)");
+                                (ListBoxMachineState.Items[i] as MachineState).InsertResultDescribe("null 반환 발생");
+                                (ListBoxMachineState.Items[i] as MachineState).DrawColorMan(30, 255, 100, 100);
+                                (ListBoxMachineState.Items[i] as MachineState).InsertSingleTime("Single 실패: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
+                                MessageBox.Show("null 반환 발생\n" + tmpAddress + "\n" + tmpFilter, "Single 오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                            }));
+                            Debug.WriteLine("null 반환 발생\n" + tmpAddress + "\n" + tmpFilter);
+                            tmpErrCount++;
+                        }
+                        else if (tmpResult == 0)
                         {
                             _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
                             {
@@ -746,14 +760,6 @@ namespace TorusWPF
                             }));
                             if (true)
                             {
-                                if (item == null)
-                                {
-                                    _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
-                                    {
-                                        MessageBox.Show("null 반환 발생", "Single 오류", MessageBoxButton.OK, MessageBoxImage.Error);
-                                    }));
-                                    Debug.WriteLine("null 반환 발생");
-                                }
                                 string returnAddress = item.GetValueString("address");
                                 string returnFilter = item.GetValueString("filter");
                                 if (!string.Equals(tmpAddress, returnAddress, StringComparison.OrdinalIgnoreCase) || !string.Equals(tmpFilter, returnFilter, StringComparison.OrdinalIgnoreCase))
@@ -2594,6 +2600,28 @@ namespace TorusWPF
             ButtonMultiStop.IsEnabled = true;
         }
 
+        //API(IntelligentApiCS)는 Multi getData에서 아래 주소의 필터를 변환하다가 하나라도 실패하면
+        //아무것도 보내지 않고 {"value":["Error"]} 한 개만 든 배열과 오류 코드를 돌려줍니다.
+        private static bool IsMultiAborted(int _result, Item[] _items, int _sentCount)
+        {
+            if (_result == 0 || _items == null || _items.Length != 1)
+            {
+                return false;
+            }
+            return _sentCount != 1 || (_items[0] != null && _items[0].GetValueString("address") == "");
+        }
+
+        //API가 필터를 변환하는 주소인지 판별합니다. API 내부 조건과 같게 맞춘 것입니다.
+        private static bool IsFilterConvertedAddress(string _address)
+        {
+            string[] tmpParts = _address.Trim().ToLower().Split('/');
+            if (tmpParts.Length < 5)
+            {
+                return false;
+            }
+            return (tmpParts.Contains("plc") && tmpParts.Contains("memory")) || tmpParts.Contains("device") || tmpParts.Contains("deviceserver");
+        }
+
         private void ThreadMulti()
         {
             long tmpTotalTime = 0;
@@ -2635,6 +2663,9 @@ namespace TorusWPF
             {
                 tmpAllCount = Convert.ToInt32(TextBlockMultiAll.Text);
             }));
+            //Multi 전체를 중단시켜 제외한 항목(주소 + 필터)과 그 오류 코드, 그리고 이미 확인해 본 항목입니다. Multi Start마다 새로 만듭니다.
+            Dictionary<string, int> tmpExcludedCode = new();
+            HashSet<string> tmpProbedKey = new();
             while (!_threadMultistopFlag)
             {
                 successCount = 0;
@@ -2643,7 +2674,7 @@ namespace TorusWPF
                 Stopwatch stopwatch = new();
                 string[] addressArray = new string[tmpTotalCount];
                 string[] filter_Array = new string[tmpTotalCount];
-                Item[] itemArray = new Item[tmpTotalCount];
+                string[] keyArray = new string[tmpTotalCount];
                 for (int i = 0; i < tmpTotalCount; i++)
                 {
                     string tmpAddress = (ListBoxMachineState.Items[i] as MachineState).address;
@@ -2661,22 +2692,105 @@ namespace TorusWPF
                     }
                     addressArray[i] = tmpAddress;
                     filter_Array[i] = tmpFilter;
-                    if (_threadMultistopFlag)
+                    keyArray[i] = tmpAddress + "\n" + tmpFilter;
+                }
+                //제외 목록에 없는 항목만 Multi로 보냅니다. sendPosArray[i]는 i번째 행이 보낸 배열의 몇 번째인지이며, 제외된 행은 -1입니다.
+                int[] sendPosArray = new int[tmpTotalCount];
+                int tmpSendCount = 0;
+                Item[] itemArray = null;
+                int tmpResult = 0;
+                while (true)
+                {
+                    List<string> tmpSendAddress = new();
+                    List<string> tmpSendFilter = new();
+                    for (int i = 0; i < tmpTotalCount; i++)
+                    {
+                        if (tmpExcludedCode.ContainsKey(keyArray[i]))
+                        {
+                            sendPosArray[i] = -1;
+                        }
+                        else
+                        {
+                            sendPosArray[i] = tmpSendAddress.Count;
+                            tmpSendAddress.Add(addressArray[i]);
+                            tmpSendFilter.Add(filter_Array[i]);
+                        }
+                    }
+                    tmpSendCount = tmpSendAddress.Count;
+                    if (tmpSendCount == 0)
+                    {
+                        tmpResult = 0;
+                        itemArray = new Item[0];
+                        break;
+                    }
+                    stopwatch.Restart();
+                    tmpResult = Api.getData(tmpSendAddress.ToArray(), tmpSendFilter.ToArray(), out itemArray, _multiDirect, _timeout);
+                    stopwatch.Stop();
+                    if (!IsMultiAborted(tmpResult, itemArray, tmpSendCount))
+                    {
+                        break;
+                    }
+                    //Multi 전체가 중단되었으므로, 중단을 일으킬 수 있는 주소를 하나씩 Single로 확인해 원인 항목을 찾습니다.
+                    //Single은 필터 변환에 실패했을 때만 오류 코드와 함께 null이 아닌 item을 돌려줍니다.
+                    bool tmpFound = false;
+                    for (int i = 0; i < tmpTotalCount; i++)
+                    {
+                        if (_threadMultistopFlag)
+                        {
+                            break;
+                        }
+                        if (sendPosArray[i] < 0 || !IsFilterConvertedAddress(addressArray[i]) || !tmpProbedKey.Add(keyArray[i]))
+                        {
+                            continue;
+                        }
+                        int tmpProbeResult = Api.getData(addressArray[i], filter_Array[i], out Item tmpProbeItem, _multiDirect, _timeout);
+                        if (tmpProbeResult != 0 && tmpProbeItem != null)
+                        {
+                            tmpExcludedCode[keyArray[i]] = tmpProbeResult;
+                            tmpFound = true;
+                            Debug.WriteLine("Multi 제외: " + addressArray[i] + " " + filter_Array[i]);
+                        }
+                    }
+                    if (!tmpFound)
                     {
                         break;
                     }
                 }
-                stopwatch.Restart();
-                int tmpResult = Api.getData(addressArray, filter_Array, out itemArray, _multiDirect, _timeout);
-                stopwatch.Stop();
                 //Multi의 경우 하나만 오류가 발생해도 함수 실행 결과가 오류로 표시됩니다. itemArray의 "status"의 값이 0이 아니라면 오류입니다.
                 lock (_lock)
                 {
-                    if (tmpResult == 558891055)
+                    for (int i = 0; i < tmpTotalCount; i++)
+                    {
+                        if (sendPosArray[i] >= 0)
+                        {
+                            continue;
+                        }
+                        string tmpExcludeCode = MakeErrorMessage(tmpExcludedCode[keyArray[i]], out string tmpExcludeMessage);
+                        _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
+                        {
+                            (ListBoxMachineState.Items[i] as MachineState).InsertResult(tmpExcludeCode);
+                            (ListBoxMachineState.Items[i] as MachineState).InsertResultDescribe("Multi 제외(필터 변환 실패로 Multi 전체를 중단시키는 항목) " + tmpExcludeMessage);
+                            (ListBoxMachineState.Items[i] as MachineState).DrawColorMan(30, 255, 100, 100);
+                            (ListBoxMachineState.Items[i] as MachineState).InsertMultiTime("Multi 제외");
+                        }));
+                    }
+                    //API가 응답을 받지 못하면 itemArray가 null이고, 필터 변환에 실패하면 길이가 1인 배열을 돌려줍니다.
+                    //두 경우 모두 항목별 결과가 없으므로 보낸 항목 전체를 실패로 표시합니다.
+                    bool tmpNoItemResult = itemArray == null || itemArray.Length != tmpSendCount || IsMultiAborted(tmpResult, itemArray, tmpSendCount);
+                    if (tmpResult == 558891055 || tmpNoItemResult)
                     {
                         string tmpErrorCode = MakeErrorMessage(tmpResult, out string tmpErrorMessage);
+                        if (tmpResult != 558891055)
+                        {
+                            tmpErrorMessage = "항목별 결과 없음(반환 개수: " + (itemArray == null ? "null" : itemArray.Length.ToString()) + " / " + tmpSendCount.ToString() + ") " + tmpErrorMessage;
+                            Debug.WriteLine("Multi 결과 배열 이상: " + tmpErrorCode + " " + tmpErrorMessage);
+                        }
                         for (int i = 0; i < tmpTotalCount; i++)
                         {
+                            if (sendPosArray[i] < 0)
+                            {
+                                continue;
+                            }
                             _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
                             {
                                 (ListBoxMachineState.Items[i] as MachineState).InsertResult(tmpErrorCode);
@@ -2688,20 +2802,37 @@ namespace TorusWPF
                     }
                     else
                     {
+                        //API는 응답 문자열 파싱에 실패하면 그 항목부터 끝까지를 null로 남겨 둡니다.
+                        int tmpNullCount = 0;
+                        int tmpFirstNullIndex = -1;
                         for (int i = 0; i < tmpTotalCount; i++)
                         {
+                            if (sendPosArray[i] < 0)
+                            {
+                                continue;
+                            }
+                            Item tmpItem = itemArray[sendPosArray[i]];
+                            if (tmpItem == null)
+                            {
+                                if (tmpFirstNullIndex < 0)
+                                {
+                                    tmpFirstNullIndex = i;
+                                }
+                                tmpNullCount++;
+                                string tmpNullCode = MakeErrorMessage(tmpResult, out string tmpNullMessage);
+                                _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
+                                {
+                                    (ListBoxMachineState.Items[i] as MachineState).InsertResult("null 반환 (" + tmpNullCode + ")");
+                                    (ListBoxMachineState.Items[i] as MachineState).InsertResultDescribe("null 반환 발생 " + tmpNullMessage);
+                                    (ListBoxMachineState.Items[i] as MachineState).DrawColorMan(30, 255, 100, 100);
+                                    (ListBoxMachineState.Items[i] as MachineState).InsertMultiTime("Multi 실패: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
+                                }));
+                                continue;
+                            }
                             if (true)//테스트 코드
                             {
-                                if (itemArray[i] == null)
-                                {
-                                    _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
-                                    {
-                                        MessageBox.Show("null 반환 발생", "Multi 오류", MessageBoxButton.OK, MessageBoxImage.Error);
-                                    }));
-                                    Debug.WriteLine("null 반환 발생");
-                                }
-                                string returnAddress = itemArray[i].GetValueString("address");
-                                string returnFilter = itemArray[i].GetValueString("filter");
+                                string returnAddress = tmpItem.GetValueString("address");
+                                string returnFilter = tmpItem.GetValueString("filter");
                                 if (!string.Equals(addressArray[i], returnAddress, StringComparison.OrdinalIgnoreCase) || !string.Equals(filter_Array[i], returnFilter, StringComparison.OrdinalIgnoreCase))
                                 {
                                     _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
@@ -2712,14 +2843,14 @@ namespace TorusWPF
                                     Debug.WriteLine("불일치 발생\n" + addressArray[i] + "\n" + returnAddress + "\n" + filter_Array[i] + "\n" + returnFilter);
                                 }
                             }
-                            int status = itemArray[i].GetValueInt("status");
+                            int status = tmpItem.GetValueInt("status");
                             if (status == 0)
                             {
                                 successCount++;
                                 _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
                                 {
-                                    (ListBoxMachineState.Items[i] as MachineState).InsertResult(itemArray[i].ToString());
-                                    (ListBoxMachineState.Items[i] as MachineState).InsertResultDescribe(MakeSuccessMessage(itemArray[i]));
+                                    (ListBoxMachineState.Items[i] as MachineState).InsertResult(tmpItem.ToString());
+                                    (ListBoxMachineState.Items[i] as MachineState).InsertResultDescribe(MakeSuccessMessage(tmpItem));
                                     (ListBoxMachineState.Items[i] as MachineState).DrawColorMan(100, 103, 153, 255);
                                     (ListBoxMachineState.Items[i] as MachineState).InsertMultiTime("Multi 성공: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
                                 }));
@@ -2735,6 +2866,17 @@ namespace TorusWPF
                                     (ListBoxMachineState.Items[i] as MachineState).InsertMultiTime("Multi 실패: " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
                                 }));
                             }
+                        }
+                        if (tmpNullCount > 0)//테스트 코드
+                        {
+                            string tmpNullReport = "null 반환 발생: " + tmpNullCount.ToString() + " / " + tmpSendCount.ToString() + "개\n" +
+                                "첫 null 위치: " + (tmpFirstNullIndex + 1).ToString() + "번째\n" +
+                                addressArray[tmpFirstNullIndex] + "\n" + filter_Array[tmpFirstNullIndex];
+                            Debug.WriteLine(tmpNullReport);
+                            _ = System.Windows.Application.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(delegate
+                            {
+                                MessageBox.Show(tmpNullReport, "Multi 오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                            }));
                         }
                     }
                 }

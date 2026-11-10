@@ -26,6 +26,10 @@ For detailed license information, please refer to the [LICENSE folder](LICENSE/)
 
 ## Updates
 ---
+v2.3.21
+- Multi Start, Single Start에서 API가 null 결과를 돌려줄 때 발생하던 크래시 수정
+- Multi getData 전체를 중단시키는 항목(필터 변환 실패)을 자동으로 찾아 제외하고 나머지 항목을 조회하도록 개선
+
 v2.3.20
 - 공통 필터, MachineDataModel 필터가 '&'로 시작하거나 끝날 때 발생하던 크래시 수정
 - 시계열 데이터 큐의 스레드 안전성 개선, 수집 시작 실패 시 수집 루프가 남던 문제 수정
